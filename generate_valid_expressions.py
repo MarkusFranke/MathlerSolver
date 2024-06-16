@@ -8,7 +8,7 @@ from typing import Iterable
 
 # ----- Generate all valid expressions -----
 
-# Runtime: 30min-60min
+# Runtime: 30min-40min
 
 def get_connection():
     """Establishes a connection to the SQLite database."""
