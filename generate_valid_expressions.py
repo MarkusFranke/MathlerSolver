@@ -76,7 +76,6 @@ def count_digits(n):
     return math.floor(math.log10(abs(n))) + 1
 
 def generate_simple_expressions_with_one_operator(max_length=8, start_time=None, operations = "+-"):
-    # split this in "+-" and "*/" for better multiprocessing
     conn = get_connection()
     c = conn.cursor()
     batch = []
