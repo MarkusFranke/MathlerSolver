@@ -9,7 +9,6 @@ from typing import Iterable
 # ----- Generate all valid expressions -----
 
 # Runtime: 30min-60min
-# What to improve: superfluous brackets (x+y)+y should probably be removed
 
 def get_connection():
     """Establishes a connection to the SQLite database."""
@@ -354,6 +353,36 @@ def generate_bracket_expressions(starting_expr="", iter=0,
                     f"Current Progress: {percent} ----- "
                     f"Elapsed Time: {elapsed_time} seconds -----]")
 
+    def is_valid_formula(expr, tolerance=1e-8):        
+        """
+        Checks if the given expression is a valid formula.
+
+        Three checks:
+            - is the expression mathematically valid or do we divide by 0.
+            - is the result of the evaluation an integer
+            - are the superfluous (which we do not believe happens in mathler) 
+
+        Args:
+            expr (str): The expression to evaluate.
+            tolerance (float, optional): The tolerance level for checking if the
+            result is an integer. Defaults to 1e-8.
+
+        Returns:
+            bool: True if the expression is valid and evaluates to a
+            non-negative int within the specified tolerance, False otherwise.
+        """
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            try:
+                result = eval(expr) #filter remaining div by 0 and similar errors
+                is_pos = result >= 0 
+                is_int = abs(result - round(result)) < tolerance
+                equation_no_brackets = expr.replace('(', '').replace(')', '')
+                superfluous_brackets = eval(equation_no_brackets) == eval(expr)
+                return is_pos and is_int and superfluous_brackets
+            except Exception:
+                return False
     def handle_complete_expression(current_expr):
         """
         Handles a complete expression and its mirrored version.
