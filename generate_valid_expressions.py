@@ -21,8 +21,16 @@ import multiprocessing
 # Additionally -this one I'm sure about- I have (TODO) decided to not include any expressions with brackets that are superfluous, f.e. (12+3)+4.
 # And full integers are not considered as a solution either, we want at least one operator.
 
+# UPDATE: given the last month of mathler solutions, I decided not to include any expressions that include the number 0.
+#   A lot of solutions include 0, since you can generate say 42 with 42+x*0, where x is any 3-digit-number.
+#   Yet I couldn't find a single actual mathler where 0 was used. Thus our predictions will be much better if we don't account for it.
+#   Additionally there don't seem to be any mathlers where the solution was negative, thus I'll remove these solutions from the database.
+
 # Commutative solutions are allowed and will be considered in the algorithm. 
 #   I assume that green marks are only given for a final commutative solution or for symbols that are in the correct place in the original correct solution.
+
+# remove negative int solutions
+# remove single 0's
 
 def get_connection():
     return sqlite3.connect('valid_guesses.db')
@@ -57,8 +65,8 @@ def is_valid_formula(expr, tolerance=1e-8):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         try:
-            result = eval(expr) #filter out all other mathematically invalid options, like division by zero. 
-            return abs(result - round(result)) < tolerance
+            result = eval(expr) #filter out all other mathematically invalid options, like division by zero.
+            return result >= 0 and abs(result - round(result)) < tolerance
         except Exception:
             return False
 
@@ -67,23 +75,31 @@ def count_digits(n):
         return 1
     return math.floor(math.log10(abs(n))) + 1
 
-def generate_simple_expressions_with_one_operator(max_length=8, start_time=None):
+def generate_simple_expressions_with_one_operator(max_length=8, start_time=None, operations = "+-"):
+    # split this in "+-" and "*/" for better multiprocessing
     conn = get_connection()
     c = conn.cursor()
     batch = []
     iter = 0
 
-    for num1 in range(1000000):
+    total_iter = 24300000*len(operations)
+
+    for num1 in range(1,1000):
         num2_len = 7-count_digits(num1)
         for num2 in range(10**(num2_len-1), 10**num2_len):
-            for oper in "+-*/":
-                expr = str(num1) + oper + str(num2)
-                if is_valid_formula(expr):
-                    iter += 1
-                    if (iter - 456789) % 1000000 == 0:
-                        percent = ("{0:.2f}").format(100* (iter / 152e6))
-                        print(f'[----- simple expressions 1 ----- Current Progress: {percent} ----- Elapsed Time: {round(time.time() - start_time)} seconds -----]')
-                    batch.append((round(eval(expr)), expr))
+            for oper in operations:
+                expr1 = str(num1) + oper + str(num2)
+                expr2 = str(num2) + oper + str(num1)
+                if (iter - 456789) % (total_iter/100) == 0:
+                    percent = ("{0:.0%}").format(iter / total_iter)
+                    print(f'[----- simple expressions 1{operations} ----- Current Progress: {percent} ----- Elapsed Time: {round(time.time() - start_time)} seconds -----]')
+                if is_valid_formula(expr1):
+                    batch.append((round(eval(expr1)), expr1))
+                    if len(batch) >= 1000000:
+                        add_expr(batch)
+                        batch.clear()
+                if is_valid_formula(expr2):
+                    batch.append((round(eval(expr2)), expr2))
                     if len(batch) >= 1000000:
                         add_expr(batch)
                         batch.clear()
@@ -91,6 +107,7 @@ def generate_simple_expressions_with_one_operator(max_length=8, start_time=None)
     if len(batch) > 0:
         add_expr(batch)
 
+    print("Total Iters for simple 1: " + str(iter))
     conn.close()
 
 def generate_simple_expressions_with_two_operators(max_length=8, start_time=None):
@@ -99,27 +116,28 @@ def generate_simple_expressions_with_two_operators(max_length=8, start_time=None
     batch = []
     iter=0
 
-    for num1 in range(10000):
+    for num1 in range(1, 10000):
         num_left = 6-count_digits(num1)
-        for num2 in range(0, 10**(num_left-1)):
+        for num2 in range(1, 10**(num_left-1)):
             num_left2 = num_left - count_digits(num2)
-            for num3 in range(10**(num_left2-1), 10**num_left2):
+            for num3 in range(max(1,10**(num_left2-1)), 10**num_left2):
                 for oper in "+-*/":
                     for oper2 in "+-*/":
                         expr = str(num1) + oper + str(num2) + oper2 + str(num3)
                         if is_valid_formula(expr):
                             iter += 1
-                            if (iter - 456789) % 1000000 == 0:
-                                percent = ("{0:.2f}").format(100* (iter / 81e6))
+                            if (iter - 57) % 546993 == 0: #monitor this outside the if, much easier and more accurate!
+                                percent = ("{0:.0%}").format(iter / 54_699_357)
                                 print(f'[----- simple expressions 2 ----- Current Progress: {percent} ----- Elapsed Time: {round(time.time() - start_time)} seconds -----]')
                             batch.append((round(eval(expr)), expr))
-                            if len(batch) >= 1000000:
+                            if len(batch) >= 1_000_000:
                                 add_expr(batch)
                                 batch.clear()
                                          
     if len(batch) > 0:
         add_expr(batch)
 
+    print("Total Iters for simple 2: " + str(iter))
     conn.close()
 
 
@@ -129,29 +147,31 @@ def generate_simple_expressions_with_three_operators(max_length=8, start_time=No
     batch = []
     iter = 0
 
-    for num1 in range(100):
+    for num1 in range(1,100):
         num_left = 5-count_digits(num1)
-        for num2 in range(0, 10**(num_left-2)):
+        for num2 in range(1, 10**(num_left-2)):
             num_left2 = num_left - count_digits(num2)
-            for num3 in range(0, 10**(num_left2-1)):
+            for num3 in range(1, 10**(num_left2-1)):
                 num_left3 = num_left2- count_digits(num3)
-                for num4 in range(10**(num_left3-1), 10**num_left3):
+                for num4 in range(max(1,10**(num_left3-1)), 10**num_left3):
                     for oper in "+-*/":
                         for oper2 in "+-*/":
                             for oper3 in "+-*/":
                                 expr = str(num1) + oper + str(num2) + oper2 + str(num3) + oper3 + str(num4)
                                 if is_valid_formula(expr):
                                     iter += 1
-                                    if (iter - 456789) % 1000000 == 0:
-                                        print(f'[----- simple expressions 3 ----- Current Iter: {iter} ----- Elapsed Time: {round(time.time() - start_time)} seconds -----]')
+                                    if (iter - 97) % 65687 == 0:
+                                        percent = ("{0:.0%}").format(iter / 6_568_797)
+                                        print(f'[----- simple expressions 3 ----- Current Iter: {percent} ----- Elapsed Time: {round(time.time() - start_time)} seconds -----]')
                                     batch.append((round(eval(expr)), expr))
-                                    if len(batch) >= 1000000:
+                                    if len(batch) >= 1_000_000:
                                         add_expr(batch)
                                         batch.clear()
                                         
     if len(batch) > 0:
         add_expr(batch)
 
+    print("Total Iters for simple 3: " + str(iter))
     conn.close()
 
 def generate_bracket_expressions(max_length=8, starting_expr="", iter=0, start_time=None):
@@ -162,8 +182,8 @@ def generate_bracket_expressions(max_length=8, starting_expr="", iter=0, start_t
     c = conn.cursor()
     batch = []    
 
-    full_digit = [str(num) for num in range(100)]
-    single_digit = [str(num) for num in range(10)]
+    full_digit = [str(num) for num in range(1,100)]
+    single_digit = [str(num) for num in range(1,10)]
     double_digit = [str(num) for num in range(10,100)]
 
     def mirror_expression(expr):
@@ -193,8 +213,9 @@ def generate_bracket_expressions(max_length=8, starting_expr="", iter=0, start_t
         elif len(current_expr) == max_length:
             if is_valid_formula(current_expr):
                 iter += 1
-                if (iter - 456789) % 1000000 == 0:
-                    print(f'[----- bracket expressions  ----- Current Iter: {iter} ----- Elapsed Time: {round(time.time() - start_time)} seconds -----]')
+                if (iter - 69) % 3453 == 0:
+                    percent = ("{0:.0%}").format(iter / 345369)
+                    print(f'[----- bracket expressions  ----- Current Progress: {percent} ----- Elapsed Time: {round(time.time() - start_time)} seconds -----]')
                 batch.append((round(eval(current_expr)), current_expr))
                 if len(batch) >= 10000:
                     add_expr(batch)
@@ -202,8 +223,9 @@ def generate_bracket_expressions(max_length=8, starting_expr="", iter=0, start_t
             mirror_expr = mirror_expression(current_expr)
             if is_valid_formula(mirror_expr):
                 iter += 1
-                if (iter - 456789) % 1000000 == 0:
-                    print(f'[----- bracket expressions  ----- Current Iter: {iter} ----- Elapsed Time: {round(time.time() - start_time)} seconds -----]')
+                if (iter - 69) % 3453 == 0:
+                    percent = ("{0:.0%}").format(iter / 345369)
+                    print(f'[----- bracket expressions  ----- Current Progress: {percent} ----- Elapsed Time: {round(time.time() - start_time)} seconds -----]')
                 batch.append((round(eval(mirror_expr)), mirror_expr))
                 if len(batch) >= 1000000:
                     add_expr(batch)
@@ -259,7 +281,8 @@ def generate_bracket_expressions(max_length=8, starting_expr="", iter=0, start_t
 
     if len(batch) > 0:
         add_expr(batch)
-    
+    print("Total Iters for brackets: " + str(iter))
+
     conn.close()
 
     
@@ -269,7 +292,8 @@ def main():
     pool = multiprocessing.Pool()
 
     tasks = [
-        pool.apply_async(generate_simple_expressions_with_one_operator, (8, start_time)),
+        pool.apply_async(generate_simple_expressions_with_one_operator, (8, start_time, "+-")),
+        pool.apply_async(generate_simple_expressions_with_one_operator, (8, start_time, "*/")),
         pool.apply_async(generate_simple_expressions_with_two_operators, (8, start_time)),
         pool.apply_async(generate_simple_expressions_with_three_operators, (8, start_time)),
         pool.apply_async(generate_bracket_expressions,)
