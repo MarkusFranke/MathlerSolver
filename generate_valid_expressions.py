@@ -21,7 +21,7 @@ def add_expr(data):
     Args:
         data (list of tuples): A list where each tuple contains:
             - integer (int): evaluation of the math. expression
-            - string (str): math. expression as stringS
+            - string (str): math. expression as strings
     """
     conn = get_connection()
     c = conn.cursor()
