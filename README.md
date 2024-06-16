@@ -4,10 +4,9 @@ This repository contains a Python-based solver for the game Mathler, specificall
 
 Running mathler_solver.py then allows you to get optimized equations for your next guess. The optimization of equations is still a work-in-progress:
 
-Work-In-Progress:
+Current Progress:
 - Can solve the hard version of mathler in the terminal with you acting as agent for the information flow between website and solver. 
 - First guess frequency approach has been implemented.
 - Subsequent guesses currently also run this approach, but the approach is not adapted (repeats should be avoided here, too, if using this approach).
 - Plan is to solve subsequent guesses using an information criterium, if the number of leftover possible solutions make it computationally feasible.
-- 
 
