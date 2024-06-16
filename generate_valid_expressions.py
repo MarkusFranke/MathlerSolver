@@ -30,7 +30,6 @@ def add_expr(data):
     conn.commit()
     conn.close()
 
-
 def valid_pos_for_closing_bracket(expr) -> bool:
     """Determines if there is an operator within the brackets.
 
