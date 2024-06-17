@@ -6,7 +6,7 @@ Running mathler_solver.py then allows you to get optimized equations for your ne
 
 Current Progress:
 - Can solve the hard version of mathler in the terminal with you acting as agent for the information flow between website and solver. 
-- First guess frequency approach has been implemented.
+- First guess frequency approach has been implemented, but should be altered to account for commutative solutions.
 - Subsequent guesses currently also run this approach, but the approach is not adapted (repeats should be avoided here, too, if using this approach).
 - Plan is to solve subsequent guesses using an information criterium, if the number of leftover possible solutions make it computationally feasible.
 
