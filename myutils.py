@@ -1,13 +1,14 @@
 import sqlite3
 import multiprocessing
-from collections import defaultdict, Counter
+from collections import Counter #, defaultdict
 
 class Expression:
     def __init__(self, expr):
         self.expr = expr
         self.symbols = "0123456789+-*/()"
         self.total_num_dict = self._count_symbols()
-        self.guaranteed_num_dict = {pos: char for pos, char in enumerate(self.expr)}
+        self.guaranteed_num_dict = {pos: char for pos,
+                                    char in enumerate(self.expr)}
     
     def _count_symbols(self):
         return {char: self.expr.count(char) for char in self.symbols}
@@ -21,18 +22,22 @@ class SolutionFilter:
         print(f"loading db solutions for {solution}")
         possible_expr = load_expressions(sol = solution)
         self.possible_expr = [Expression(expr) for expr in possible_expr]
-        self.unique_expr = load_expressions_with_no_repeating_chars(sol = solution, expressions = possible_expr)
+        self.unique_expr = load_expressions_with_no_repeating_chars(
+            sol = solution, expressions = possible_expr)
         del possible_expr
         print("loading db solutions done")
 
-        self.min_total_num_dict = {char: 0 for char in self.symbols} # a dict for each symbol "0123456789+-*/()" containing the min number of guaranteed occurrences
-        self.max_total_num_dict = {char: 7 for char in self.symbols} # a dict for each symbol "0123456789+-*/()" containing the max number of possible occurrences
-        self.has_been_gray_dict = {char: False for char in self.symbols} # a dict specifying if we found grey feedback for this char
-        self.guaranteed_num_dict = {pos: None for pos in self.positions} # dict for known symbols for positions
-        self.forbidden_num_dict = {pos: [] for pos in self.positions} # dict for each position containing forbidden symbols
+        self.min_total_num_dict = {char: 0 for char in self.symbols}
+        self.max_total_num_dict = {char: 7 for char in self.symbols}
+        self.has_been_gray_dict = {char: False for char in self.symbols}
+        self.guaranteed_num_dict = {pos: None for pos in self.positions}
+        self.forbidden_num_dict = {pos: [] for pos in self.positions}
 
     def _update_graybased_max(self):
-        """For all gray positions we know the exact number of occurrences, which we keep track with min_count and use this function to set it to equal max_count"""
+        """For all gray positions we know the exact number of occurrences,
+        which we keep track with min_count and use this function to set it to
+        equal max_count"""
+
         for sym in self.symbols:
             if self.has_been_gray_dict[sym]:
                 self.max_total_num_dict[sym] = self.min_total_num_dict[sym]
@@ -40,32 +45,41 @@ class SolutionFilter:
     def _is_expression_still_possible(self, expr) -> bool:
         """Update current possible expressions are no longer viable"""
         for pos, sym in enumerate(expr.expr):
-            if self.guaranteed_num_dict[pos] is not None and self.guaranteed_num_dict[pos] != sym:
+            if (self.guaranteed_num_dict[pos] is not None and
+                self.guaranteed_num_dict[pos] != sym):
                 return False
-            #if sym in self.forbidden_num_dict[pos]:
-            #    return False
+            if sym in self.forbidden_num_dict[pos]:
+                return False
         
         for sym in self.symbols:
             count = expr.total_num_dict[sym]
-            if count < self.min_total_num_dict[sym] or count > self.max_total_num_dict[sym]:
+            if (count < self.min_total_num_dict[sym] or 
+                count > self.max_total_num_dict[sym]):
                 return False
         return True
 
     def _filter_expressions(self) -> list:
-        """Use the updated feedback dicts to reduce current possible expressions"""
-        self.possible_expr = [expr for expr in self.possible_expr if self._is_expression_still_possible(expr)]
+        """Use the updated feedback dicts to
+        reduce current possible expressions"""
+
+        self.possible_expr = [expr for expr in self.possible_expr 
+                              if self._is_expression_still_possible(expr)]
 
     def _apply_feedback(self, guess:str, feedback:str):
-        """Feedback should be in the form of a list with colours, denoted by 'dark', 'yellow', 'green' """
+        """Feedback should be in the form of a list with colours,
+        denoted by 'dark', 'yellow', 'green' """
+        
         self.guess_count += 1
-        self.min_total_num_dict = {char: 0 for char in self.symbols} #resetting this is okay, as long as we always keep previously found symbols in the next equation
+        self.min_total_num_dict = {char: 0 for char in self.symbols}
+        # Resetting this is okay, as long as we 
+        # always keep previously found symbols in the next equation
 
         for pos, sym in enumerate(guess):
             if feedback[pos] == "dark":
                 self.has_been_gray_dict[sym] = True
                 self.forbidden_num_dict[pos].append(sym)
             elif feedback[pos] == "yellow":
-                self.min_total_num_dict[sym] += 1 # if not reset earlier, this would build up over guesses.
+                self.min_total_num_dict[sym] += 1 # else this can build up
                 self.forbidden_num_dict[pos].append(sym)
             elif feedback[pos] == "green":
                 self.min_total_num_dict[sym] += 1
@@ -74,12 +88,17 @@ class SolutionFilter:
         self._filter_expressions()
     
     def _get_first_solution(self) -> str:
-        # Local Frequency approach: We calculate the relative frequency for every position, interpret this as its probability and choose the expression, where the 
-        # quasi-likelihood, i.e. the product of all rel. frequencies for its positions is the largest.
-        # But: these frequencies when interpreted as probabilities are not independent, thus looking at this approach probabilistically is flawed.
+        # Local Frequency approach: We calculate the relative frequency
+        # for every position, interpret this as its probability and
+        # choose the expression, where the quasi-likelihood, i.e.
+        # the product of all rel. frequencies for its positions is the largest.
+        # But: these frequencies when interpreted as probabilities are not iid,
+        # thus looking at this approach probabilistically is flawed.
+
         rel_freq = calculate_relative_frequencies(self.unique_expr)
 
-        print("Amount of possible unique first solutions: " + str(len(self.unique_expr)))
+        print("Amount of possible unique first solutions: " +
+              str(len(self.unique_expr)))
 
         score = []
         for expr in self.unique_expr:
@@ -123,13 +142,14 @@ class SolutionFilter:
 
 
     def get_solution(self) -> str:
-        if self.guess_count == 0: #do == 0 when information solution implemented.
+        if self.guess_count == 0:
             return self._get_first_solution()
         else:
             return self._get_solution()
         
     def _parse_feedback(self) -> tuple[str, list]:
-        """Terminal interaction for entering oracle feedback and submitted guesses"""
+        """Terminal interaction for entering oracle feedback
+        and submitted guesses"""
 
         def is_valid_input(string:str) -> bool:
             allowed_chars = {'d', 'y', 'g'}
@@ -151,7 +171,8 @@ class SolutionFilter:
             guess = str(input()) #is str needed here?
 
             while True:
-                print(f"Enter the colors as a single string, d=dark, y=yellow, g=green. Example: 'ggdydydg'")
+                print(f"Enter the colors as a single string, d=dark, " +
+                      "y=yellow, g=green. Example: 'ggdydydg'")
                 colors = input()
                 if is_valid_input(colors):
                     break
@@ -181,7 +202,8 @@ def load_expressions(sol:int) -> list:
     c = conn.cursor()
 
     def get_expr(solution:int) -> list:
-        c.execute("SELECT string FROM valid_guesses WHERE integer = ?", (solution,))
+        c.execute("SELECT string FROM valid_guesses " +
+                  "WHERE integer = ?", (solution,))
         return [row[0] for row in c.fetchall()]
 
     solutions = get_expr(sol)
@@ -196,8 +218,10 @@ def has_unique_chars(input_str:str) -> bool:
         seen_chars.add(char)
     return True
 
-def load_expressions_with_no_repeating_chars(sol:int, expressions:list = []) -> list:
-    """Loads all expressions that do not have repeating characters and equal the solution"""
+def load_expressions_with_no_repeating_chars(sol:int,
+                                             expressions:list = []) -> list:
+    """Loads all expressions that do not have repeating characters 
+    and equal the solution"""
 
 
     def find_strings_with_unique_chars(string_list):
@@ -230,7 +254,8 @@ def calculate_relative_frequencies(expr:list):
     relative_frequencies = []
     for counter in position_counters:
         total_counts = sum(counter.values())
-        relative_frequency = {char: count / total_counts for char, count in counter.items()}
+        relative_frequency = {char: count / total_counts for char,
+                              count in counter.items()}
         relative_frequencies.append(relative_frequency)
     
     return relative_frequencies
