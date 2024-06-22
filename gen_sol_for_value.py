@@ -1,10 +1,7 @@
 import numpy as np
 from numba import njit
 import time
-
-@njit
-def digits(l:list) -> int:
-    return int(np.sum(np.floor(np.log10(np.multiply(l, 10)))))
+import itertools
 
 @njit
 def digit(n:int) -> int:
@@ -262,16 +259,15 @@ def gen_two_oper(sol:int):
 
         #Case: xxxx + y + z = sol
         if 1002 <= sol <= 10017: # xxxx + y + z
-
-            for x in range(max(1,sol-9-9999),min(10,sol-1-1000+1)):
-                for y in range(max(1,sol-x-9999),min(10,sol-x-1000)):
-                    z = sol - x - y
-                    if digit(z) == 4:
-                        if x == y:
+            for y in range(1,10):
+                for z in range(y,10): # z > y -> no duplicates
+                    x = sol - y - z
+                    if digit(x) == 4:
+                        if y == z:
                             results.extend([
-                                (f"{z}+{x}+{x}", 3),
-                                (f"{x}+{z}+{x}", 3),
-                                (f"{x}+{x}+{z}", 3)
+                                (f"{x}+{y}+{y}", 3),
+                                (f"{y}+{x}+{y}", 3),
+                                (f"{y}+{y}+{x}", 3)
                             ])
                         else:
                             results.extend([
@@ -300,10 +296,10 @@ def gen_two_oper(sol:int):
         # Case: xx + yy + zz
         if 30 <= sol <= 297:
             for x in range(max(10,sol-99-99), min(100,sol-10-10+1)):
-                for y in range(max(10,sol-x-99), min(100,sol-10-x+1)):
+                for y in range(max(x,sol-x-99), min(100,sol-10-x+1)):
                     z = sol - x - y
-                    if digit(z) == 2:
-                        if x != y and y != z:
+                    if digit(z) == 2 and z > y: # second cond avoids duplicates
+                        if x != y and y != z and x != z:
                            results.extend([
                                 (f"{x}+{y}+{z}", 6),
                                 (f"{x}+{z}+{y}", 6),
@@ -340,7 +336,7 @@ def gen_two_oper(sol:int):
         # Case: xxxx + y - z
         if 992 <= sol <= 10007:
             for x in range(1,10): # the negative number
-                for y in range(1,10):
+                for y in range(x,10):
                     z = sol + x - y
                     if digit(z) == 4:
                         results.extend([
@@ -373,18 +369,25 @@ def gen_two_oper(sol:int):
                             (f"{z}-{x}+{y}", 4),
                             (f"{y}-{x}+{z}", 4)
                         ])
-        # Case: xx - yy + zz
+        # Case: xx + yy - zz
         if sol <= 188:
-            for x in range(10,100): # The negative number
-                for y in range(10,100):
-                    z = sol + x - y
+            for x in range(10,100): 
+                for y in range(x,100):
+                    z = x + y - sol
                     if digit(z) == 2:
-                        results.extend([
-                            (f"{z}+{y}-{x}", 4),
-                            (f"{y}+{z}-{x}", 4),
-                            (f"{z}-{x}+{y}", 4),
-                            (f"{y}-{x}+{z}", 4)
-                        ])
+                        if x != y:
+                            results.extend([
+                                (f"{x}-{y}-{z}", 4),
+                                (f"{y}+{x}-{z}", 4),
+                                (f"{x}-{z}+{y}", 4),
+                                (f"{y}-{z}+{x}", 4)
+                            ])
+                        else:                            
+                            results.extend([
+                                (f"{x}-{x}-{z}", 4),
+                                (f"{x}-{z}+{x}", 4)
+                            ])
+
         # Case: xx + y - zzz
         if sol <= 8:
             for z in range(100,108+1): # The negative number
@@ -406,7 +409,7 @@ def gen_two_oper(sol:int):
         # Case: xxxx-y-z
         if 988 <= sol <= 9997:
             for z in range(1,10):
-                for y in range(1,10):
+                for y in range(z,10):
                     x = sol + y + z
                     if digit(x) == 4 and y != z:
                         results.append((f"{x}-{y}-{z}", 2))
@@ -424,7 +427,7 @@ def gen_two_oper(sol:int):
         # Case: xx - yy - zz
         if sol <= 79:
             for z in range(10,89-sol+1):
-                for y in range(10,99-z-sol+1):
+                for y in range(z,99-z-sol+1):
                     x = sol + y + z
                     if digit(x) == 2 and y != z:
                         results.append((f"{x}-{y}-{z}", 2))
@@ -467,7 +470,7 @@ def gen_two_oper(sol:int):
         # Case: x*y+zzzz
         if 1004 <= sol <= 10080:
             for x in range(2,10):
-                for y in range(2,10):
+                for y in range(x,10):
                     z = sol-x*y
                     if 1000 <= z <= 9999:
                         if x != y:
@@ -664,7 +667,7 @@ def gen_two_oper(sol:int):
         results = []
         if 1 <= sol < 2500:
             for z in range(2,10):
-                for y in range(2,10):
+                for y in range(z,10):
                     x = int(z*y*sol)
                     if x > 9999:
                         break
@@ -707,24 +710,284 @@ def gen_two_oper(sol:int):
                           gen_div_min,gen_mul_mul,gen_div_div,gen_mul_div)
     
 # ---------------------------------------------------------------------------- #
+import ast
+import operator
         
 def gen_three_oper(sol): # Maybe use a database for this one? eh
+    # a oper b oper c oper d = sol
 
-    # Do * and + together with all combos using itertools
-    pass
+    results = []
+    # op3 in "+-", op2, op1 free
+    for a, b, c in itertools.product(list(range(1,10)), repeat=3):
+        for op1, op2 in itertools.product(["+", "-", "*", "/"], repeat=2):
+            if op1 in "*/" and (a == 1 or b == 1):
+                continue
+            if op2 in "*/" and (b == 1 or c == 1):
+                continue
+            for op3 in "+-":
+                if op3 == "+":
+                    d = sol-(eval(f"{a}{op1}{b}{op2}{c}"))
+                    if 10 <= d <= 99:
+                        d = int(d)
+                        results.append((f"{a}{op1}{b}{op2}{c}{op3}{d}"))
+                        results.append((f"{a}{op1}{b}{op3}{d}{op2}{c}"))
+                        results.append((f"{a}{op3}{d}{op1}{b}{op2}{c}"))
+                        results.append((f"{d}{op3}{a}{op1}{b}{op2}{c}"))
+                else:
+                    d = (eval(f"{a}{op1}{b}{op2}{c}"))-sol
+                    if 10 <= d <= 99:
+                        d = int(d)
+                        results.append((f"{a}{op1}{b}{op2}{c}{op3}{d}"))
+                        results.append((f"{a}{op1}{b}{op3}{d}{op2}{c}"))
+                        results.append((f"{a}{op3}{d}{op1}{b}{op2}{c}"))
+    
+    # all "*" and "/"
+    for a, b, c in itertools.product(list(range(2,10)), repeat=3):
+        for op1, op2, op3 in itertools.product(["*", "/"], repeat=3):
+            partial_sol = eval(f"{a}{op1}{b}{op2}{c}")
+            if op3 == "*" and partial_sol != 0:
+                d = sol/partial_sol
+                if 10 <= d <= 99 and d.is_integer():
+                    how_many_mul = (op1 == "*") + (op2 == "*") + (op3 == "*")
+                    n_c = (how_many_mul + 1) * 6
+                    results.append((f"{a}{op1}{b}{op2}{c}{op3}{int(d)}", n_c))
+                    results.append((f"{a}{op1}{b}{op3}{int(d)}{op2}{c}", n_c))
+                    results.append((f"{a}{op3}{int(d)}{op1}{b}{op2}{c}", n_c))
+                    results.append((f"{int(d)}{op3}{a}{op1}{b}{op2}{c}", n_c))
+            elif sol != 0:
+                d = (eval(f"{a}{op1}{b}{op2}{c}"))/sol
+                if 10 <= d <= 99 and d.is_integer():
+                    how_many_mul = (op1 == "*") + (op2 == "*") + (op3 == "*")
+                    n_c = (how_many_mul + 1) * 6
+                    results.append((f"{a}{op1}{b}{op2}{c}{op3}{int(d)}", n_c))
+                    results.append((f"{a}{op1}{b}{op3}{int(d)}{op2}{c}", n_c))
+                    results.append((f"{a}{op3}{int(d)}{op1}{b}{op2}{c}", n_c))
 
+    # op1 free, op2 is in "+-", op3 in "*/"
+
+    for a, b, c in itertools.product(list(range(1,10)), repeat=3):
+        for op1 in "+-*/":
+            for op2 in "+-":
+                for op3 in "*/":
+                    if op1 in "*/" and (a == 1 or b == 1):
+                        continue
+                    if op2 in "*/" and c == 1:
+                        continue
+                    if op2 == "+":
+                        partial_sol = sol - eval(f"{a}{op1}{b}")
+                    else:
+                        partial_sol = eval(f"{a}{op1}{b}") - sol
+                    if op3 == "*":
+                        d = partial_sol / c
+                        if 10 <= d <= 99 and d.is_integer():
+                            d = int(d)
+                            results.append((f"{a}{op1}{b}{op2}{c}{op3}{d}"))
+                            results.append((f"{a}{op1}{b}{op3}{d}{op2}{c}"))
+                            results.append((f"{a}{op3}{d}{op1}{b}{op2}{c}"))
+                            results.append((f"{d}{op3}{a}{op1}{b}{op2}{c}")) 
+                    else:
+                        d = partial_sol * c
+                        if 10 <= d <= 99 and d.is_integer():
+                            d = int(d)
+                            results.append((f"{a}{op1}{b}{op2}{c}{op3}{d}"))
+                            results.append((f"{a}{op1}{b}{op3}{d}{op2}{c}"))
+                            results.append((f"{a}{op3}{d}{op1}{b}{op2}{c}"))
+
+    # op1 "+-", op2 in "*/", op3 in "*/"
+    for a in range(1,10):
+        for b, c in itertools.product(list(range(2,10)), repeat=2):
+            for op1 in "+-":
+                for op2, op3 in itertools.product(["*", "/"], repeat=2):
+                    if op1 == "+":
+                        partial_sol = sol - a
+                    else:
+                        partial_sol = a - sol
+
+                    if op3 == "*":
+                        bc = eval(f"{b}{op1}{c}")
+                        if bc == 0:
+                            continue
+                        d = partial_sol / bc
+                        if 10 <= d <= 99 and d.is_integer():
+                            d = int(d)
+                            n_c = ((op1 == "+")+1)
+                            n_c *= ((op2 == "*")+(op3 == "*")+1)*2
+                            results.append((f"{a}{op1}{b}{op2}{c}{op3}{d}",n_c))
+                            results.append((f"{a}{op1}{b}{op3}{d}{op2}{c}",n_c))
+                            results.append((f"{a}{op3}{d}{op1}{b}{op2}{c}",n_c))
+                            results.append((f"{d}{op3}{a}{op1}{b}{op2}{c}",n_c))
+                    else:
+                        if partial_sol == 0:
+                            continue
+                        d = eval(f"{b}{op1}{c}") / partial_sol
+                        if 10 <= d <= 99 and d.is_integer():
+                            d = int(d)
+                            n_c = ((op1 == "+")+1)
+                            n_c *= ((op2 == "*")+(op3 == "*")+1)*2
+                            results.append((f"{a}{op1}{b}{op2}{c}{op3}{d}",n_c))
+                            results.append((f"{a}{op1}{b}{op3}{d}{op2}{c}",n_c))
+                            results.append((f"{a}{op3}{d}{op1}{b}{op2}{c}",n_c))
+
+    return results
 # ---------------------------------------------------------------------------- #
 
 def gen_brackets(sol):
-    pass
+    # Idea: Generate x oper c first. Then express x = (a oper b) with brackets.
+    def bracket_expr(solx:int, lenx, prefix:str, postfix:str,
+                     multiply_com_num:int = 1):
+        
+        # Case: (aa+b)
+        expr = []
+        if 11 <= solx <= 108 and lenx == 6:
+            for b in range(1,10):
+                a = int(solx - b)
+                if digit(a) == 2:
+                    expr.extend([
+                        (f"{prefix}({a}+{b}){postfix}",2*multiply_com_num),
+                        (f"{prefix}({b}+{a}){postfix}",2*multiply_com_num)
+                    ])
+        # Case: (a+b)
+        if 2 <= solx <= 18 and lenx == 5:
+            for b in range(1,10):
+                a = int(solx-b)
+                if digit(a) == 1 and a != b and a > 0:
+                    expr.extend([
+                        (f"{prefix}({a}+{b}){postfix}",2*multiply_com_num)
+                    ])
+                elif a == b:
+                    expr.extend([
+                        (f"{prefix}({a}+{b}){postfix}",1*multiply_com_num)
+                    ])
+        # Case: (aa-b)
+        if 1 <= solx <= 98 and lenx == 6:
+            for b in range(1,10):
+                a = int(solx+b)
+                if 10 <= a <= 99:
+                    expr.append((f"{prefix}({a}-{b}){postfix}",
+                                 1*multiply_com_num))
+        # Case: (a-b)
+        if 1 <= solx <= 8 and lenx == 5:
+            for a in range(2,10):
+                b = int(solx+a)
+                if 0 < b <= 9:
+                    expr.append((f"{prefix}({a}-{b}){postfix}",
+                                 1*multiply_com_num))
+        # Case: (aa*b)
+        if 10 <= solx <= 891 and lenx == 6:
+            for b in range(2,10):
+                a = sol/b
+                if a.is_integer() and 10 <= a <= 99:
+                    expr.extend([
+                        (f"{prefix}({int(a)}*{b}){postfix}",2*multiply_com_num),
+                        (f"{prefix}({b}*{int(a)}){postfix}",2*multiply_com_num)
+                    ])
+        # Case: (a*b)
+        if 4 <= solx <= 81 and lenx == 5:
+            for a in range(2,10):
+                b = sol/a
+                if b.is_integer() and 2 <= b <= 9:
+                    if a != b:
+                        expr.append((f"{prefix}({a}*{int(b)}){postfix}",
+                                    2*multiply_com_num))
+                    else:
+                        expr.append((f"{prefix}({a}*{int(b)}){postfix}",
+                                     1*multiply_com_num))
+        # Case: (aa/b)
+        if 2 <= solx < 50 and lenx == 6:
+            for b in range(2,10):
+                a = int(sol*b)
+                if 10 <= a <= 99:
+                    expr.append((f"{prefix}({a}/{b}){postfix}",
+                                    1*multiply_com_num))
+        # Case: (a/b)
+        match solx:
+            case 1:
+                for i in range(2,10):
+                    expr.append((f"{prefix}({i}/{i}){postfix}",
+                                    1*multiply_com_num))
+            case 2:
+                for i in range(2,5):
+                    expr.append((f"{prefix}({i*2}/{i}){postfix}",
+                                    1*multiply_com_num))
+            case 3:
+                for i in range(2,4):
+                    expr.append((f"{prefix}({i*3}/{i}){postfix}",
+                                    1*multiply_com_num))
+            case 4:
+                    expr.append((f"{prefix}({8}/{4}){postfix}", 
+                                 1*multiply_com_num))
+        return expr
+            
+    def gen_b_plus(sol): # sol = x + c = (a oper b) + c
+        results = []
+        for c in range(1,100):
+            x = sol - c
+            if 1 <= c <= 9:
+                results.extend(bracket_expr(x, 6, f"{c}+", "", 2))
+                results.extend(bracket_expr(x, 6, "", f"+{c}", 2))
+            else:
+                results.extend(bracket_expr(x, 5, f"{c}+", "", 2))
+                results.extend(bracket_expr(x, 5, "", f"+{c}", 2))
+        return results
+    
+    def gen_b_minus(sol):
+        # sol = x - c = (a oper b) - c
+        results = []
+        for c in range(1,100):
+            x = sol + c
+            if 1 <= c <= 9:
+                results.extend(bracket_expr(x, 6, "", f"-{c}", 1))
+            else:
+                results.extend(bracket_expr(x, 5, "", f"-{c}", 1))
+        # sol = c - x = c - (a oper b)
+        for c in range(1,100):
+            x = c - sol
+            if 1 <= c <= 9 and x > 0:
+                results.extend(bracket_expr(x, 6, f"{c}-", "", 1))
+            elif 10 <= c <= 99 and x > 0:
+                results.extend(bracket_expr(x, 5, f"{c}-", "", 1))
+        return results
 
+    def gen_b_mul(sol): # sol = x * c = (a oper b) * c
+        results = []
+        for c in range(2,100):
+            x = sol/c
+            if x.is_integer():
+                if 1 <= c <= 9:
+                    results.extend(bracket_expr(x, 6, f"{c}*", "", 2))
+                    results.extend(bracket_expr(x, 6, "", f"*{c}", 2))
+                else:
+                    results.extend(bracket_expr(x, 5, f"{c}*", "", 2))
+                    results.extend(bracket_expr(x, 5, "", f"*{c}", 2))
+        return results
+
+    def gen_b_div(sol):
+        # sol = x / c = (a oper b) / c
+        results = []
+        for c in range(2,100):
+            x = sol/c
+            if x.is_integer():
+                if 1 <= c <= 9:
+                    results.extend(bracket_expr(x, 6, "", f"/{c}", 2))
+                else:
+                    results.extend(bracket_expr(x, 5, "", f"/{c}", 2))
+        # sol = c / x = c / (a oper b)
+        for c in range(2,100):
+            x = c/sol
+            if x.is_integer():
+                if 1 <= c <= 9:
+                    results.extend(bracket_expr(x, 6, f"{c}/", "", 2))
+                else:
+                    results.extend(bracket_expr(x, 5, f"{c}/", "", 2))
+        return results
+    return gen_b_div(sol)
 # ---------------------------------------------------------------------------- #
 
 if __name__ == '__main__':
     sol = 42
     start_time = time.time()
 
-    expr = gen_two_oper(sol)
+    expr = gen_three_oper(sol)
     if expr is not None:
         expr_list_as_string = '\n'.join(map(str, expr))
         with open("output.txt", "w") as file:
@@ -734,3 +997,18 @@ if __name__ == '__main__':
     
     print(f"Generated {len(expr)} valid solutions in " +
           f"{time.time()-start_time:.2f}s")
+    
+    def find_duplicates(lst):
+        seen = set()
+        duplicates = []
+        for item in lst:
+            if item in seen:
+                duplicates.append(item)
+            else:
+                seen.add(item)
+        return duplicates
+        
+    print(find_duplicates(expr))
+
+# ToDo: calculate frequencies for 3 oper expressions!
+# ToDo: Calculations in 3 oper are often wrong! look through logic
