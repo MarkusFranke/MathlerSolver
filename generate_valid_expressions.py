@@ -1,3 +1,5 @@
+# Deprecated, rewrote it more efficiently
+
 import warnings
 import time
 import sqlite3
