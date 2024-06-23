@@ -1,11 +1,11 @@
-# Deprecated, rewrote it more efficiently
-
 import warnings
 import time
-import sqlite3
 import math
 import multiprocessing
 from typing import Iterable
+
+import sqlite3
+
 
 
 # ----- Generate all valid expressions -----
