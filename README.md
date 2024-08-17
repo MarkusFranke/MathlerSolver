@@ -1,12 +1,16 @@
-## MathlerSolver
+### Showcase
 
-This repository contains a Python-based solver for the game Mathler, specifically the hard version of mathler. Running generate_valid_expressions.py generates all equations that we believe are used in the game. (Even more are valid, like starting with "+", or "-" or using zeros on their own, or (very rarely) a non-integer solution). These equations are stored in an sql database, and take up 3-4GB of disk space.
+ToDo (after UI is done)
 
-Running mathler_solver.py then allows you to get optimized equations for your next guess. The optimization of equations is still a work-in-progress:
+### What in it?
 
-Current Progress:
-- Can solve the hard version of mathler in the terminal with you acting as agent for the information flow between website and solver. 
-- First guess frequency approach has been implemented, but should be altered to account for commutative solutions.
-- Subsequent guesses currently also run this approach, but the approach is not adapted (repeats should be avoided here, too, if using this approach).
-- Plan is to solve subsequent guesses using an information criterium, if the number of leftover possible solutions make it computationally feasible.
+A work-in-progess solver for the hard mathler: mathler.com/hard
+
+### Why is this challenging:
+
+- simple vectorisation is infeasible, since if we include infeasible equations of length 8 such as ")554+5/05" then we have 16^8 > 4e9 possible equations. This consumes a lot of disk space and buffers too long.
+- finding all possible valid solutions that are exactly of length 8 and equal the solutionis also not an easy task. I could not think of a way to vectorise this.
+- to find the "best" solution we need to evaluate how much the solution space decreases for each valid choice (to make a best greedy choice). This is also challenging to calculate for the first guess.
+- the computational burden increases if we try more elaborate algorithmns, running f.e. Adaboost for every possible solution currently just takes too long.
+
 
